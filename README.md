@@ -3,7 +3,7 @@
 ## Example 2 - Serving A static Webpage
 
 Contains a clojure project using leiningen and
-./project.clj file for the project definitions, such as dependencies
+./project.clj file for the project definitions, such as dependencies.
 
 
 ./resources/index.html is a simple static html page that your server returns
