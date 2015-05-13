@@ -13,7 +13,7 @@ it uses a compjure route and the ring middleware
 
 
 
-## Example 1 - RESTful Interface Mockup
+## Example 1 - RESTful Interface Mockup 
 
 The previous example is extended by adding a RESTful interface delivering data.
 For invoking the interface, you can either use
