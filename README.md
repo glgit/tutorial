@@ -7,7 +7,7 @@ Contains a clojure project using leiningen and
 
 
 ./resources/index.html is a simple static html page that your server returns
-it uses a compjure route and the ring middleware
+it uses a compjure route and the ring middleware.
 
 ./src/core.clj file for the clojure code serving the static content
 
