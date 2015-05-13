@@ -1,0 +1,16 @@
+/resources/public/js/**
+/resources/public/js_d/**
+figwheel_server.log
+pom.xml
+*jar
+/lib/
+/classes/
+/out/
+/js/
+/target/
+.lein-deps-sum
+.lein-repl-history
+.lein-plugins/
+.repl
+.nrepl-port
+*.js
