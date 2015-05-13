@@ -21,4 +21,4 @@ For invoking the interface, you can either use
 $ curl -i http://localhost:8000/accounts/101  returns the account object
 $ curl -i http://localhost:8000/accounts/1012 returns a 404
 
-or past the URL into your browser
+or past the URL into your browser.
