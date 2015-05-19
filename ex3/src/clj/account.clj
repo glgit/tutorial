@@ -55,10 +55,54 @@
          @balances))))
 
 
-
-(defn account-balances [journal]
+(defn account-balances1 [journal]
   (let [b (atom (sorted-map))]
     (calculate-account-balances journal b)))
+
+
+(defn account-balances [journal]
+  "Takes a journal - a vector of maps - and returns an lazy sequence
+   of maps with the value-date :balance amount and relevant :bookings."
+  (let [iset (clojure.set/index journal [:value-date])]
+    (map (fn [a b c] {:value-date a :balance b :bookings c})
+        (map :value-date (map first iset))
+        (map  #(apply + (map :amount %))  (map second iset))
+        (map second iset))))
+
+
+
+
+
+
+
+
+
+;; (defn ^:private calculate-account-balances-1 [journal balances
+;;                                    &{:keys [total] :or {total 0 }}]
+;;   "Tail-recursive function to calcluate the balances of a account journal.
+;;    Function works with plain-vanilla map as well as a record type."
+;;   (if (not (empty? journal))
+;;       (let [journal-entry    (first journal)
+;;             value-date       (keyword (:value-date journal-entry))
+;;             booking-amount   (:amount journal-entry)
+;;             value-date-amt   (get-in @balances [value-date :amount])
+;;             value-date-total (if (number? value-date-amt) value-date-amt 0)
+;;             balances-out     (assoc-in balances [value-date]
+;;                                 {:amount   (+ value-date-total booking-amount)
+;;                                  :balance  (+ total booking-amount)
+;;                                  :booking-ids (vec
+;;                                                (conj
+;;                                                  (get-in balances
+;;                                                         [value-date :booking-ids])
+;;                                                  (:id journal-entry)))})]
+;;       (if (not (empty? (rest journal)))
+;;          (calculate-account-balances-1 (rest journal) balances-out :total (+ total booking-amount))
+;;          balances-out))))
+;;
+;; (defn account-balances-1 [journal]
+;;   (let [b (sorted-map)]
+;;     (calculate-account-balances-1 journal b)))
+
 
 
 
