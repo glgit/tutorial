@@ -55,7 +55,7 @@
          @balances))))
 
 
-(defn account-balances1 [journal]
+(defn account-balances0 [journal]
   (let [b (atom (sorted-map))]
     (calculate-account-balances journal b)))
 
