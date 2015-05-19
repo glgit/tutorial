@@ -60,6 +60,11 @@
     (calculate-account-balances journal b)))
 
 
+;; The following version interprets the journal as a set and then
+;; groups the entries per value-date using the set/index function.
+;; Note that this function operates on immutable data (i.e., no atom
+;; etc. is necessary).
+
 (defn account-balances [journal]
   "Takes a journal - a vector of maps - and returns an lazy sequence
    of maps with the value-date :balance amount and relevant :bookings."
