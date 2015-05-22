@@ -47,6 +47,25 @@ curl -i -X POST -H "Content-Type: application/json" \
     -d '{"amount":"30","ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
     http://localhost:8000/accounts/bookings/101
 
+curl -i  http://localhost:8000/accounts/bookings/101
+
+Multiple inokations of aboe POST create no additional booking. In contrast, an emtpy :xref
+results in a booking per call of the next POST
+
+curl -i -X POST -H "Content-Type: application/json" \
+    -d '{"amount":"30","ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
+    http://localhost:8000/accounts/bookings/101
+
+The following service calls result in a 404, 404 and 400 respectively
+
+$ curl -i -X POST -H "Content-Type: application/json" \
+    -d '{"amount":"30","ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
+    http://localhost:8000/accounts/bookings/101
+$ curl -i  http://localhost:8000/accounts/bookings/102
+
+curl -i -X POST -H "Content-Type: application/json" \
+    -d '{"amount":"30","ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
+    http://localhost:8000/accounts/bookings/101
 
 $ curl -i http://localhost:8000/accounts/balances/101  returns the balances of the account object
 $ curl -i http://localhost:8000/accounts/balances/1012 returns a 404

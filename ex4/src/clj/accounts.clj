@@ -79,14 +79,14 @@
   "Duplicate, if entry with an :xref is already in journal. Otherwise,
    we assume here simply that it is not a duplicate (and do not check
    the update timestamp :ts."
-  (println (format "journal-entry-duplicate? >>> %s" (str entry)  (System/currentTimeMillis)))
+   ;; (println (format "journal-entry-duplicate? >>> %s" (str entry)  (System/currentTimeMillis)))
 
   (if (empty? (:xref entry))
     false
     (let [a (clojure.set/project (set (list entry)) [:value-date :amount :ccy :xref])
           b (clojure.set/project (set journal) [:value-date :amount :ccy :xref])
           c (clojure.set/subset? a b)]
-     (println (format "journal-entry-duplicate? 2 >>> %s " (str c) (System/currentTimeMillis)))
+     ;; (println (format "journal-entry-duplicate? 2 >>> %s " (str c) (System/currentTimeMillis)))
      (clojure.set/subset?
       (clojure.set/project (set (list entry)) [:value-date :amount :ccy :xref])
       (clojure.set/project (set journal) [:value-date :amount :ccy :xref])))))
@@ -95,7 +95,7 @@
 (defn add-journal-entry [accounts id entry]
   (let [j-entry (conj {:ts (l/format-local-time (l/local-now) :date-time)} entry)
         account (get-in @accounts [(keyword id)])]
-    (println (format "add-journal-entry >>> %s %s" (str j-entry) (System/currentTimeMillis)))
+    ;;(println (format "add-journal-entry >>> %s %s" (str j-entry) (System/currentTimeMillis)))
     (swap! accounts assoc-in [(keyword id) :bookings]  (vec (conj (:bookings account) j-entry )))))
 
 
