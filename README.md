@@ -71,3 +71,10 @@ $ curl -i http://localhost:8000/accounts/balances/101  returns the balances of t
 $ curl -i http://localhost:8000/accounts/balances/1012 returns a 404
 
 or past the URL into your browser.
+
+## Example 5 - RESTful Interface using Scaffolded Resource Controller
+
+Previous example is rewritten using a resource controller macro, where the macro is just supporting
+a particular kind of resource.
+
+
