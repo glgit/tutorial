@@ -78,3 +78,7 @@ Previous example is rewritten using a resource controller macro, where the macro
 a particular kind of resource.
 
 
+## Example 7 - Defining example schema and validate schema
+
+First define the schema. This validation does not take into account business rules, such as "bookings
+must be not in the past ...."
