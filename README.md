@@ -47,6 +47,10 @@ curl -i -X POST -H "Content-Type: application/json" \
     -d '{"amount":"30","ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
     http://localhost:8000/accounts/bookings/101
 
+curl -i -X POST -H "Content-Type: application/json" \
+    -d '{"amount":"30","ccy":"CHF","value-date":"2015-01-01","xref":"bla"}'\
+    http://localhost:8000/accounts/bookings/101
+
 curl -i  http://localhost:8000/accounts/bookings/101
 
 Multiple inokations of aboe POST create no additional booking. In contrast, an emtpy :xref

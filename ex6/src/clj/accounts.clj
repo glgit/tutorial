@@ -28,8 +28,8 @@
   (s/pred time-stamp? 'time-stamp?))
 
 
-(s/validate time-stamp-s (f/unparse time-stamp-formatter (now)))
-(s/validate time-stamp-s "2010-01-01:20:12:50.459")
+;;(s/validate time-stamp-s (f/unparse time-stamp-formatter (now)))
+;;(s/validate time-stamp-s "2010-01-01:20:12:50.459")
 
 
 (s/defschema currency-code-s
@@ -43,7 +43,6 @@
     (and (string? s)
          (re-find pattern s)
          (f/parse s))))
-
 
 
 (s/defschema account-booking-s
@@ -62,9 +61,9 @@
    :ccy currency-code-s
    :bookings [account-booking-s]})
 
-(s/validate s/Inst (l/format-local-time (java.util.Date.) :date-time))
-(l/format-local-time (System/currentTimeMillis) :date-time)
-(l/format-local-time (l/local-now) :date-time)
+;;(s/validate s/Inst (l/format-local-time (java.util.Date.) :date-time))
+;;(l/format-local-time (System/currentTimeMillis) :date-time)
+;;(l/format-local-time (l/local-now) :date-time)
 
 ;; s/inst correspond to the java.util.Date object. But, I need the formatted string. Hence,
 ;; I need to define separate schemata
@@ -79,9 +78,9 @@
                         {:amount 100 :value-date "2014-01-02" :ccy "USD" :xref "A3"}
                        ]})
 
-(s/validate currency-code-s "JPY")
-(s/validate account-booking-s {:amount 100 :value-date "2014" :ccy "USD"})
-(s/validate account-s account-test-data)
+;;(s/validate currency-code-s "JPY")
+;;(s/validate account-booking-s {:amount 100 :value-date "2014" :ccy "USD"})
+;;(s/validate account-s account-test-data)
 
 
 (s/explain account-s)
@@ -184,6 +183,19 @@
       (clojure.set/project (set (list entry)) [:value-date :amount :ccy :xref])
       (clojure.set/project (set journal) [:value-date :amount :ccy :xref])))))
 
+
+;;(defn journal-entry-validate? [id entry]
+;;  true)
+
+(defn journal-entry-validate? [id entry]
+  (let [account        (get-in @accounts [(keyword id)])
+        valid-currency (if (= (:currency account) (:ccy entry)) true false)
+        ;;valid-schema   (s/validate account-booking-s entry)]
+        valid-schema true]
+    (println (format ">>> %s  %s %s" (:currency account) (:ccy entry) valid-currency))
+    (if (and valid-currency valid-schema)
+      true
+      false)))
 
 
 (defn add-journal-entry [accounts id entry]

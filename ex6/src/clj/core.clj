@@ -81,7 +81,7 @@
 ;;  For macroexpansion in the REPL, use liberator.core/defresource in definition"
 
 (defmacro my-r-macro
-  [r-name r-id & {:keys [malformed-fn lookup-fn duplicate-fn update-fn]}]
+  [r-name r-id & {:keys [malformed-fn lookup-fn duplicate-fn validate-fn update-fn]}]
   `(defresource ~r-name [~r-id]
      :available-media-types ["application/json"]
      :allowed-methods [:get :post]
@@ -94,7 +94,9 @@
               (let [record# (j/read-str body# :key-fn keyword)]
                  (if (~malformed-fn record#)
                    [true  {:message "booking incomplete."}]
-                   [false {:record record#}]))
+                   (if (not (~validate-fn (keyword ~r-id) record#))
+                     [true {:message "invalid entry" }]
+                     [false {:record record#}])))
               [true {:message "No body"}])
           (catch Exception e#
            [true {:message (format "exception: %s" (.getMessage e#))}]))))
@@ -126,6 +128,7 @@
     :malformed-fn malformed-accounts-booking?
     :lookup-fn lookup-accounts
     :duplicate-fn journal-entry-duplicate1?
+    :validate-fn journal-entry-validate?
     :update-fn add-journal-entry1)
 
 
