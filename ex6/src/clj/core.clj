@@ -8,20 +8,11 @@
             [compojure.core         :refer [defroutes ANY GET POST]]
             [liberator.core         :refer [resource defresource]]
             [clojure.data.json      :as j]
-            [accounts :refer :all]))
+            [accounts :refer :all])
+  (:use [accounts :only (->ResourceModel)]
+        [clojure.pprint])
+  (:import (accounts ResourceModel DependentResourceModel)))
 
-
-(defresource accounts-r [id]
-	:available-media-types ["application/json"]
-	:allowed-methods [:get ]
-	:exists?
-		(fn [_]
-			(if-let [acc-j  (get-in @accounts [(keyword id)])]
-				[true  {:account  acc-j}]
-				[false {:message (format "Account %s not found" id)}]))
-	:handle-ok
-		(fn [{acc-j :account}]
-			(j/write-str acc-j)))
 
 ;- curl -i http://localhost:8000/accounts/101  returns the account object
 ;- curl -i http://localhost:8000/accounts/1012 returns a 404
@@ -56,22 +47,9 @@
                 (str ""(when id (str "/" id)))))
 
 
-(defn malformed-accounts-booking? [{{method :request-method} :request :as ctx}]
-  "Bookings must contain a value-date, amount, currency and an existing account, where
-   the currency must match the account currency."
-  (if (= :post method)
-    (try
-      (if-let [body (body-as-string ctx)]
-        (let [booking-data (j/read-str body :key-fn keyword)]
-          (if (or
-             (empty? (:amount booking-data))
-             (empty? (:ccy booking-data))
-             (empty? (:value-date booking-data)))
-           [true  {:message "booking incomplete."}]
-           [false {:booking-data booking-data}]))
-         [true {:message "No body"}])
-      (catch Exception e
-         [true {:message (format "exception: %s" (.getMessage e))}]))))
+(defn malformed-request? [item]
+   (empty? item))
+
 
 
 
@@ -81,8 +59,20 @@
 ;;  For macroexpansion in the REPL, use liberator.core/defresource in definition"
 
 (defmacro my-r-macro
-  [r-name r-id & {:keys [malformed-fn lookup-fn duplicate-fn validate-fn update-fn]}]
-  `(defresource ~r-name [~r-id]
+  [r-name r-id r-m & {:keys [malformed-fn]}]
+  (let [;;args (get-args r-m)
+        f1 (partial get-item (eval r-m))         ;; evaluate to obtain the functions
+        f2 (partial duplicate-item?  (eval r-m))  ;; eval returns class not the symbol
+        f3 (partial valid-item?  (eval r-m))      ;;
+        f4 (partial add-item (eval r-m))
+        x  (f1 101)]        ;;
+    (println "-" x "- " (pprint r-m) (class r-m) (pprint f1) (f1 101))
+  `(do
+     (def lookup-fn#    ~f1) ;; make the functions available in the name-space
+     (def duplicate-fn# ~f2) ;; Otherwise, the macro refers to a non-existing function
+     (def validate-fn#  ~f3) ;; a the locals from the let are not part of the macro
+     (def update-fn#    ~f4) ;; NOTE Is there a better way?
+     (defresource ~r-name [~r-id]
      :available-media-types ["application/json"]
      :allowed-methods [:get :post]
      :known-content-type? #(check-content-type % ["application/json"])
@@ -94,7 +84,7 @@
               (let [record# (j/read-str body# :key-fn keyword)]
                  (if (~malformed-fn record#)
                    [true  {:message "booking incomplete."}]
-                   (if (not (~validate-fn (keyword ~r-id) record#))
+                   (if (not (validate-fn# (keyword ~r-id) record#))
                      [true {:message "invalid entry" }]
                      [false {:record record#}])))
               [true {:message "No body"}])
@@ -102,81 +92,38 @@
            [true {:message (format "exception: %s" (.getMessage e#))}]))))
      :exists?
          (fn [_#]
-            (if-let [res# (~lookup-fn (keyword ~r-id))]
+            (if-let [res# (lookup-fn# (keyword (str ~r-id)))]
                 true
-                [false {:message (format "~r-name %s not found" ~r-id)}]))
+               [false {:message (format "%s %s not found..." ~r-name ~r-id)}]))
      :can-post-to-missing?
-          (fn [_#] [false {:message (format "~r-name %s not found" ~r-id)}])
+          (fn [_#] [false {:message (format "%s %s not found!" ~r-name ~r-id)}])
      :post!
           (fn [{record# :record}]
-               (if (~duplicate-fn (keyword ~r-id) record#)
+               (if (duplicate-fn# (keyword ~r-id) record#)
                  [false {:message (format "account booking %s already exists" ~r-id)}]
-                 [true  {:result (~update-fn (keyword ~r-id) record#)}]))
+                 [true  {:result (update-fn# (keyword ~r-id) record#)}]))
 
      :location #(build-entry-url (get % :request) )
-     :handle-ok (fn [_#] (j/write-str (~lookup-fn (keyword ~r-id))))))
-
-
-(defn lookup-accounts [id]
-  (get-in @accounts [id]))
-
-(defn journal-entry-duplicate1? [id entry]
-  (journal-entry-duplicate? entry (:bookings (get-in @accounts [id]))))
-
-
-(my-r-macro accounts-bookings1-r id
-    :malformed-fn malformed-accounts-booking?
-    :lookup-fn lookup-accounts
-    :duplicate-fn journal-entry-duplicate1?
-    :validate-fn journal-entry-validate?
-    :update-fn add-journal-entry1)
+     :handle-ok (fn [_#] (j/write-str (lookup-fn# (keyword (str ~r-id)))))) )))
 
 
 
-;; (use '[liberator.core])
-;; (my-r-macro myr id)
-;; (macroexpand '(my-r-macro myr id)
+(def accounts-r-m
+  (ResourceModel. "accounts" accounts-data account-s validation-fn?))
+
+(def accounts-bookings-r-m
+  (DependentResourceModel. "account-bookings" accounts-data account-booking-s validation-fn? :xref))
 
 
-;; NEXT full example malformed-accounts-booking?)
-;;;---------------------------------------------------------
+(println ">>>>" accounts-data ((partial get-item accounts-r-m) 101))
 
+(my-r-macro accounts-r id
+            accounts-r-m
+            :malformed-fn malformed-request?)
 
-
-(defresource accounts-bookings-r [acc-id ]
- :available-media-types ["application/json"]
- :allowed-methods [:get :post]
- :known-content-type? #(check-content-type % ["application/json"])
- :malformed? malformed-accounts-booking?
- :exists?
-   (fn [ctx]
-     ;;(println (format "exists? >>> %s %s" (str (:booking-data ctx)) (System/currentTimeMillis)))
-     (if-let [acc-j  (get-in @accounts [(keyword acc-id)])]
-         true ;;[true  {:account-balances  (account-balances (:bookings acc-j))}]
-        [false {:message (format "Account %s not found" acc-id)}]))
-
- :can-post-to-missing?
-    (fn [_]
-      [false {:message (format "Account %s not found" acc-id)}])
-
-  :post!
-   (fn [{booking-data :booking-data}]
-       ;; (println (format "post! >>> %s %s" booking-data (System/currentTimeMillis)))
-       (if (journal-entry-duplicate? booking-data (:bookings (get-in @accounts [(keyword acc-id)])))
-         [false {:message (format "account booking %s already exists" acc-id)}]
-         [true {:result (add-journal-entry accounts (keyword acc-id) booking-data)}] ))
-
- ;; --- The following handler provides a result in case of a POST in addtion to the :location. The
- ;; --- example handler helps to illustrate that the POST is idempotent
- ;;:handle-created
- ;;  (fn [_]
- ;;    (j/write-str (format "{count: %s} \n" (count(get-in @accounts [(keyword acc-id) :bookings])))))
-
- :location #(build-entry-url (get % :request) )
-
- :handle-ok
-   (fn [_]
-     (j/write-str (get-in @accounts [(keyword acc-id) :bookings]))))
+(my-r-macro accounts-bookings-r id
+            accounts-bookings-r-m
+            :malformed-fn malformed-request?)
 
 
 (defresource accounts-balances-r [id]
@@ -184,7 +131,7 @@
 	:allowed-methods [:get]
 	:exists?
 		(fn [_]
-      (if-let [acc-j  (get-in @accounts [(keyword id)])]
+      (if-let [acc-j  (get-in @accounts-data [(keyword id)])]
 				[true  {:account-balances  (account-balances (:bookings acc-j))}]
 				[false {:message (format "Account %s not found" id)}]))
 	:handle-ok
@@ -201,7 +148,7 @@
   ;; REST services
   (ANY "/accounts/:id" [id] (accounts-r id))
   (ANY "/accounts/balances/:id" [id] (accounts-balances-r id))
-  (ANY "/accounts/bookings/:id" [id] (accounts-bookings1-r id))
+  ;;(ANY "/accounts/bookings/:id" [id] (accounts-bookings-r id))
   ;; static content
   (GET "/" [] home)
   (route/resources "/" )

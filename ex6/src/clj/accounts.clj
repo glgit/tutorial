@@ -3,7 +3,8 @@
             [clj-time.core :as t]
             [clj-time.format :as f]
             [clj-time.coerce :as c]
-            [schema.core :as s :include-macros true])) ;; cljs only
+            [schema.core :as s :include-macros true]
+            [schema.coerce :as sc])) ;; cljs only
 
 ;;
 ;;; Schema
@@ -85,6 +86,154 @@
 
 (s/explain account-s)
 
+;;
+;;
+
+; (def parse-comment-request
+;    (s/coerce/coercer CommentRequest coerce/json-coercion-matcher))
+;
+;;;-------------------------
+;;;
+
+(defn valid-schema? [schema obj]
+  ;; (let [obj1 (sc/coercer obj sc/json-coercion-matcher)]
+   (try
+      [true (s/validate schema obj)]
+   (catch Exception e
+      [false {:message (format "exception: %s" (.getMessage e))}])))
+
+;; user=> (valid-schema? account-booking-s {:value-date "2014-01-01" :amount 100 :ccy "USD"})
+;; [true {:amount 100, :ccy "USD", :value-date "2014-01-01"}]
+;; user=> (valid-schema? account-booking-s {:value-date "2014-01-01" :amount "100" :ccy "USD"})
+;; [false {:message "exception: Value does not match schema: {:amount (not (instance? java.lang.Number \"100\"))}"}]
+
+(defprotocol RM
+  (get-name [this])
+  (get-args [this]))
+
+(defprotocol RM-Accessor
+  (get-item [this id])
+  (duplicate-item? [this id item])
+  (valid-item? [this id item])
+  (add-item [this id item]))
+
+(defn validation-fn? [obj item]
+  (if false
+     [true item]
+     [false {:message "valdiation-fn? non implemented"}]))
+
+(deftype ResourceModel [rm-name data schema validation-fn]
+   RM
+   (get-name [this] (symbol (str rm-name "-r")))
+   (get-args [this] '[id])
+   RM-Accessor
+   (get-item [this id]
+      (let [res (get-in @data [(keyword (str id))])]
+      (println "+++" id (keyword (str id)) res)
+      (get-in @data [(keyword id)])))
+   (duplicate-item? [this id item]
+      (if (get-item this id) true false))
+   (valid-item? [this id item]
+      (let [id   (keyword id)
+            valid-1 (valid-schema? schema item)
+            valid-2 (validation-fn (get-item this id) item)]
+        (if (and (first valid-1)(first valid-2))
+             [true item]
+             [false {:message (str (:message (last valid-1)) (:message (last valid-2)))}])))
+   (add-item [this id item]
+      (let [id (keyword id)]
+          (swap! data assoc-in [id] item))))
+
+(deftype DependentResourceModel [rm-name data schema validation-fn dr-key]
+   RM
+   (get-name [this] (symbol (str rm-name "-r")))
+   (get-args [this] '[id])
+   RM-Accessor
+   (get-item [this id]
+      (get-in @data [(keyword id) dr-key]))
+   (duplicate-item? [this id item]
+      (if (empty? (dr-key item))
+        false
+       (let [journal (dr-key (get-item this id))
+             item-keys (vec
+                        (clojure.set/difference
+                           (set (keys item)) (set (list :xref))))]
+         (clojure.set/subset?
+            (clojure.set/project (set (list item)) item-keys )
+            (clojure.set/project (set journal) item-keys)))))
+   (valid-item? [this id item]
+      (let [obj (get-in @data [(keyword id)])
+            v1 (s/validate schema item)
+            v2 (validation-fn obj item)]
+        (if (and (first v1)(first v2))
+             [true item]
+             [false {:message (str (:message (last v1))
+                                   (:message (last v2)))}])))
+   (add-item [this id item]
+      (let [j-item (conj {:time-stamp (l/format-local-time
+                                           (l/local-now) :date-time)} item)
+            obj (get-in @data [(keyword id) dr-key])]
+         (swap! data assoc-in [(keyword id) dr-key]
+                              (vec (conj (dr-key @data) j-item ))))))
+
+
+
+
+;;;;;;;;;;;;;;;;
+
+
+(def account-journal
+  "This is s vector of maps, so one can access the booking by position
+   and attributes by keyword."
+  (atom
+    [{:xref "101" :value-date "2014-01-01" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "102" :value-date "2014-01-01" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "103" :value-date "2014-01-03" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "104" :value-date "2014-01-04" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "105" :value-date "2014-01-04" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "106" :value-date "2014-01-05" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "107" :value-date "2014-01-06" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "108" :value-date "2014-01-07" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "109" :value-date "2014-01-08" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "110" :value-date "2014-01-09" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "111" :value-date "2014-01-10" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "112" :value-date "2014-01-11" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}
+     {:xref "113" :value-date "2014-01-12" :amount 100 :ccy "USD" :time-stamp "20140101-144327456"}]))
+
+
+
+(def accounts-data
+  "This is s vector of maps, so one can access the booking by position
+   and attributes by keyword."
+  (atom
+    {:101 {:account-id 101 :currency "CHF" :bookings @account-journal}}))
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;
+(defn validation-fn? [obj item]
+  (if true
+     [true item]
+     [false {:message "valdiation-fn? non implemented"}]))
+
+;; (def accounts-r-m
+;;   (ResourceModel. "accounts" accounts account-s validation-fn?))
+
+;; (def accounts-bookings-r-m
+;;   (DependentResourceModel. "account-bookings" accounts account-booking-s validation-fn? :xref))
+
+
+
+
+;; defrecord gives me an item with a schema, e.g. AccountRecord
+;; the resoruce is then a collection thereof or a collection of
+;; antoher entity e.g., Accounts
+;; With deftype, I define simply a type AccountBooking-r - I
+;; atthace with it a schema, protocol and a data source (as per initialize/create)
+
+
 
 ;;;
 ;;; ********************************************************************************************
@@ -96,31 +245,6 @@
 ;-- example 2 uses only a def, where here we use a atom to hold the raw data
 ;-- why?
 
-(def account-journal
-  "This is s vector of maps, so one can access the booking by position
-   and attributes by keyword."
-  (atom
-    [{:xref "101" :value-date "2014-01-01" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "102" :value-date "2014-01-01" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "103" :value-date "2014-01-03" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "104" :value-date "2014-01-04" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "105" :value-date "2014-01-04" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "106" :value-date "2014-01-05" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "107" :value-date "2014-01-06" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "108" :value-date "2014-01-07" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "109" :value-date "2014-01-08" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "110" :value-date "2014-01-09" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "111" :value-date "2014-01-10" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "112" :value-date "2014-01-11" :amount 100 :ccy "USD" :ts "20140101-144327456"}
-     {:xref "113" :value-date "2014-01-12" :amount 100 :ccy "USD" :ts "20140101-144327456"}]))
-
-
-
-(def accounts
-  "This is s vector of maps, so one can access the booking by position
-   and attributes by keyword."
-  (atom
-    {:101 {:account-id 101 :currency "CHF" :bookings @account-journal}}))
 
 
 (defn ^:private calculate-account-balances [journal balances
@@ -188,7 +312,7 @@
 ;;  true)
 
 (defn journal-entry-validate? [id entry]
-  (let [account        (get-in @accounts [(keyword id)])
+  (let [account        (get-in @accounts-data [(keyword id)])
         valid-currency (if (= (:currency account) (:ccy entry)) true false)
         ;;valid-schema   (s/validate account-booking-s entry)]
         valid-schema true]
@@ -205,7 +329,7 @@
     (swap! accounts assoc-in [(keyword id) :bookings]  (vec (conj (:bookings account) j-entry )))))
 
 (defn add-journal-entry1 [id entry]
-  (add-journal-entry accounts id entry))
+  (add-journal-entry accounts-data id entry))
 
 ;;;--
 ;;;-- version using immutable data
