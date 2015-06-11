@@ -100,7 +100,7 @@
    (try
       [true (s/validate schema obj)]
    (catch Exception e
-      [false {:message (format "exception: %s" (.getMessage e))}])))
+      [false {:message (format "Schema exception: %s" (.getMessage e))}])))
 
 ;; user=> (valid-schema? account-booking-s {:value-date "2014-01-01" :amount 100 :ccy "USD"})
 ;; [true {:amount 100, :ccy "USD", :value-date "2014-01-01"}]
@@ -128,9 +128,7 @@
    (get-args [this] '[id])
    RM-Accessor
    (get-item [this id]
-      (let [res (get-in @data [(keyword (str id))])]
-      (println "+++" id (keyword (str id)) res)
-      (get-in @data [(keyword id)])))
+      (get-in @data [(keyword id)]))
    (duplicate-item? [this id item]
       (if (get-item this id) true false))
    (valid-item? [this id item]
@@ -144,7 +142,7 @@
       (let [id (keyword id)]
           (swap! data assoc-in [id] item))))
 
-(deftype DependentResourceModel [rm-name data schema validation-fn dr-key]
+(deftype DependentResourceModel [rm-name data schema validation-fn dr-key xref-key]
    RM
    (get-name [this] (symbol (str rm-name "-r")))
    (get-args [this] '[id])
@@ -152,29 +150,26 @@
    (get-item [this id]
       (get-in @data [(keyword id) dr-key]))
    (duplicate-item? [this id item]
-      (if (empty? (dr-key item))
+      (if (empty? (xref-key item))
         false
-       (let [journal (dr-key (get-item this id))
+       (let [journal (get-in @data [(keyword id) dr-key])
              item-keys (vec
                         (clojure.set/difference
-                           (set (keys item)) (set (list :xref))))]
+                           (set (keys item)) (set (list xref-key))))]
          (clojure.set/subset?
             (clojure.set/project (set (list item)) item-keys )
             (clojure.set/project (set journal) item-keys)))))
    (valid-item? [this id item]
       (let [obj (get-in @data [(keyword id)])
-            v1 (s/validate schema item)
+            v1 (valid-schema? schema item)
             v2 (validation-fn obj item)]
-        (if (and (first v1)(first v2))
-             [true item]
-             [false {:message (str (:message (last v1))
-                                   (:message (last v2)))}])))
+        (and (first v1)(first v2))))
    (add-item [this id item]
       (let [j-item (conj {:time-stamp (l/format-local-time
                                            (l/local-now) :date-time)} item)
-            obj (get-in @data [(keyword id) dr-key])]
+            items (get-in @data [(keyword id) dr-key])]
          (swap! data assoc-in [(keyword id) dr-key]
-                              (vec (conj (dr-key @data) j-item ))))))
+                              (vec (conj items j-item ))))))
 
 
 
@@ -213,25 +208,13 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;
-(defn validation-fn? [obj item]
-  (if true
+
+
+(defn booking-validation-fn? [account item]
+  (println "***>>" account item (= (:currency account) (:ccy item)))
+  (if-let [valid-ccy (= (:currency account) (:ccy item))]
      [true item]
-     [false {:message "valdiation-fn? non implemented"}]))
-
-;; (def accounts-r-m
-;;   (ResourceModel. "accounts" accounts account-s validation-fn?))
-
-;; (def accounts-bookings-r-m
-;;   (DependentResourceModel. "account-bookings" accounts account-booking-s validation-fn? :xref))
-
-
-
-
-;; defrecord gives me an item with a schema, e.g. AccountRecord
-;; the resoruce is then a collection thereof or a collection of
-;; antoher entity e.g., Accounts
-;; With deftype, I define simply a type AccountBooking-r - I
-;; atthace with it a schema, protocol and a data source (as per initialize/create)
+     [false {:message "Account currency and booking currency must be equal."}]))
 
 
 

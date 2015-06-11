@@ -44,11 +44,11 @@ makeing it available by a RESTful interface.
 For invoking the interface, you can either use
 
 curl -i -X POST -H "Content-Type: application/json" \
-    -d '{"amount":"30","ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
+    -d '{"amount":30,"ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
     http://localhost:8000/accounts/bookings/101
 
 curl -i -X POST -H "Content-Type: application/json" \
-    -d '{\"amount\":30,\"ccy\":"\CHF\","\value-date\":"\2015-01-01\",\"xref\":\"bla\"}'\
+    -d '{\"amount\":30,\"ccy\":\"CHF\",\"value-date\":\"2015-01-01\",\"xref\":\"bla\"}'\
     http://localhost:8000/accounts/bookings/101
 
 curl -i  http://localhost:8000/accounts/bookings/101
