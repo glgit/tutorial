@@ -1,5 +1,13 @@
 #Clojure Examples
 
+	~~~Clojure 
+    (defprotocol` RM-Accessor
+	  (get-item [this id])
+	  (duplicate-item? [this id item])
+	  (valid-item? [this id item])
+	  (add-item [this id item]))
+	~~~
+
 ## Example 1 - Serving A static Webpage
 
 Contains a clojure project using leiningen and
@@ -47,9 +55,12 @@ curl -i -X POST -H "Content-Type: application/json" \
     -d '{"amount":30,"ccy":"USD","value-date":"2015-01-01","xref":"bla"}'\
     http://localhost:8000/accounts/bookings/101
 
+
 curl -i -X POST -H "Content-Type: application/json" \
-    -d '{\"amount\":30,\"ccy\":\"CHF\",\"value-date\":\"2015-01-01\",\"xref\":\"bla\"}'\
+    -d '{"amount":30,"ccy":"CHF","value-date":"2015-01-01","xref":"bla"}'\
     http://localhost:8000/accounts/bookings/101
+
+
 
 curl -i  http://localhost:8000/accounts/bookings/101
 
