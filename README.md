@@ -1,12 +1,12 @@
 #Clojure Examples
 
-	````Clojure
+	```Clojure
     (defprotocol` RM-Accessor
 	  (get-item [this id])
 	  (duplicate-item? [this id item])
 	  (valid-item? [this id item])
 	  (add-item [this id item]))
-   ````
+   ```
 
 ## Example 1 - Serving A static Webpage
 
